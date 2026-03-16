@@ -60,7 +60,7 @@ ingest.py → raw/ → transform.py → cleaned/ → schema.py → health_enforc
 
 **TF-IDF keyword extraction** — Applied to citation narrative text to extract the top 3 keywords per record.
 
-
+**24-hour care** - Added column, 24 hour care, assuming that when applicable, it is specifically listed in Description
 ## Data Quality Notes
 
 **`CLASS_ASSESSED_FINAL` nulls** — Null for 16,416 records. Expected, as most enforcement actions are never formally appealed.

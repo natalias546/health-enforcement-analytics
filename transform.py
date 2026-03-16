@@ -93,6 +93,7 @@ final_map = {
     'FTR RES'             : 'FRTR RES',
     'DEPT WITHDREW CITATI': 'Dismissed by court', 
     'DISMISSED' : 'Dismissed by court',
+    'WMF First' : 'WF',
     'WMF FIRST' : 'WF'
 }
 
@@ -102,6 +103,13 @@ df_enforcement['CLASS_ASSESSED_FINAL'] = (
     .str.strip()
     .str.replace(r'\t', '', regex=True)
     .replace(final_map)
+)
+
+#if not audited, take class_assessed_intial for analysis
+df_enforcement['CLASS_ASSESSED_FINAL'] = np.where(
+    df_enforcement['APPEALED'] == 'No',
+    df_enforcement['CLASS_ASSESSED_INITIAL'],  
+    df_enforcement['CLASS_ASSESSED_FINAL']  
 )
 
 # Derived features
@@ -174,6 +182,34 @@ df_narratives['TOP_KEYWORDS'] = [
     for i in range(matrix.shape[0])
 ]
 df_narratives = df_narratives.drop(columns=['NARRATIVE'])
+
+##Add features on df_facilities 
+
+fac_mask = df_facility_types['VARIABLE'] == 'FAC_TYPE_CODE'
+
+df_facility_types.loc[fac_mask, 'IS_24HR'] = (
+    df_facility_types.loc[fac_mask, 'DEFINITION']
+    .str.contains('24-hour', regex=False, na=False)
+    .astype(int)
+)
+
+df_facility_types.loc[fac_mask, 'IS_HOSPITAL'] = (
+    df_facility_types.loc[fac_mask, 'DEFINITION']
+    .str.lower()
+    .str.contains('governing body|duly constituted', regex=True, na=False)
+    .astype(int)
+)
+
+df_facility_types.loc[fac_mask, 'IS_LOW_RESOURCE'] = (
+    df_facility_types.loc[fac_mask, 'DEFINITION']
+    .str.lower()
+    .str.contains('nonprofit|non-profit|tax-exempt|community|federally qualified', regex=True, na=False)
+    .astype(int)
+)
+
+#OHE Death related and 
+df_enforcement["DEATH_RELATED"] = df_enforcement["DEATH_RELATED"].map({"Y": 1, "N": 0})
+df_enforcement["HIGHEST_PRIORITY"] = df_enforcement["HIGHEST_PRIORITY"].map({"A": 1, "B": 2, "C": 3, "D": 4})
 
 # Save 
 os.makedirs("cleaned", exist_ok=True)
