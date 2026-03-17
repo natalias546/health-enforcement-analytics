@@ -41,7 +41,6 @@ con.execute("""
         a.FAC_TYPE_CODE,
         a.FAC_FDR,
         a.DISTRICT_OFFICE,
-        a.LTC,
         f.DEFINITION AS FACILITY_TYPE_DESC,
         CAST(COALESCE(f.IS_HOSPITAL, 0) AS INTEGER) AS IS_HOSPITAL,
         CAST(COALESCE(f.IS_24HR, 0) AS INTEGER) AS IS_24HR,
@@ -52,8 +51,8 @@ con.execute("""
         a.PENALTY_CATEGORY,
         a.DISPOSITION,
         a.CLASS_ASSESSED_INITIAL,
-        a.CLASS_ASSESSED_FINAL,
-        b.DESCRIPTION AS CLASS_ASSESSED_FINAL_DESC,
+        b.DESCRIPTION AS CLASS_FINAL,
+        b.VALUE AS DESCRIPTION,
         a.DEATH_RELATED,
         CAST(a.APPEALED AS INTEGER) AS APPEALED,
         a.TOTAL_AMOUNT_INITIAL,
@@ -67,7 +66,7 @@ con.execute("""
     LEFT JOIN dim_fac_code f
         ON a.FAC_TYPE_CODE = f.VALUE
     LEFT JOIN dim_class_final b
-        ON a.CLASS_ASSESSED_FINAL = b.VALUE
+        ON a.CLASS_ASSESSED_FINAL = b.DESCRIPTION
 """)
 
 

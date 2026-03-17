@@ -37,49 +37,60 @@ df_enforcement['CLASS_ASSESSED_FINAL'] = (
     .str.replace(r'\t', '', regex=True)
 )
 
+
+df_enforcement['PENALTY_DETAIL'] = (
+    df_enforcement['PENALTY_DETAIL']
+    .str.strip()
+    .str.replace(r'\s+', ' ', regex=True)
+    .replace({
+        'AP - 3.2 Nursing-Hours-per-Patient-Day AP (HSC 1276.5)' : '3.2 Nursing-Hours-per-Patient-Day AP (HSC 1276.5)',
+        'Citation Willful Material Omission (HSC 1424(f)(1))'    : 'Citation Willful Material Omission (HSC 1424 (f)(1))',
+    })
+)
+
 df_enforcement['CLASS_ASSESSED_INITIAL'] = (
     df_enforcement['CLASS_ASSESSED_INITIAL']
     .str.strip()
     .str.replace(r'\t', '', regex=True)
 )
 # Penalty category standardization
-penalty_category_map = {
-    'AE04 - Retention of a foreign object in a patient': 'AE: Retention of a foreign object in a patient',
-    'AE17 - Stage 3 or 4 ulcer acquired after admission': 'AE: Stage 3 or 4 ulcer acquired after admission',
-    'AE22 - Death associated with a fall': 'AE: Death associated with a fall',
-    'AE11 - Suicide/attempted suicide': 'AE: Suicide/attempted suicide',
-    'AE12 - Medication error': 'AE: Medication error',
-    'AE26  - Sexual assault on a patient': 'AE: Sexual assault on a patient',
-    'AE27 - Death/injury from a physical assault': 'AE: Death/injury from a physical assault',
-    'AE28 - Adverse event or series of adverse events': 'AE: Adverse event or series of adverse events',
-    'AE01 - Surgery performed on a wrong body part': 'AE: Surgery performed on a wrong body part',
-    'AE02 - Wrong patient surgery': 'AE: Wrong patient surgery',
-    'AE03 - Wrong surgical procedure performed on a patient': 'AE: Wrong surgical procedure performed on a patient',
-    'AE05 - Death during or up to 24 hours after surgery': 'AE: Death during or up to 24 hours after surgery',
-    'AE06  -Use of contaminated drug, device, or biologic': 'AE: Use of contaminated drug, device, or biologic',
-    'AE07 - Use of device other than as intended': 'AE: Use of device other than as intended',
-    'AE08 - Death/disability due to intravascular air embolism': 'AE: Death/disability due to intravascular air embolism',
-    'AE10 - Death/disability due to disappearance': 'AE: Death/disability due to disappearance',
-    'AE13 - Hemolytic reaction': 'AE: Hemolytic reaction',
-    'AE14 - Maternal death/disab due to labor/del/post': 'AE: Maternal death/disab due to labor/del/post',
-    'AE15 - Death/disability directly related to hypoglycemia': 'AE: Death/disability directly related to hypoglycemia',
-    'AE19 - Death/disability due to electric shock': 'AE: Death/disability due to electric shock',
-    'AE20 - Line contaminated or use for wrong gas': 'AE: Line contaminated or use for wrong gas',
-    'AE21 - Death/disability due to a burn': 'AE: Death/disability due to a burn',
-    'AE23 - Death/disab assoc with use of restraints/bedrails': 'AE: Death/disab assoc with use of restraints/bedrails',
-    'AE24 - Care by impersonating licensed provider': 'AE: Care by impersonating licensed provider',
-    'AE25 - Abduction of a patient of any age': 'AE: Abduction of a patient of any age',
-    'Financial Occurrence/Fac Not Self Reported': 'Financial Occurrence/Facility Not Self Reported',
-    'Breach of IT system theft/loss of edevice/med rec': 'Breach of IT system theft/loss of device/med records',
-    'Deliberate breach of PHI by health care worker': 'Deliberate breach of PHI (protected health information) by health care worker',
-    'Other Immediate Jeopardy (not an AE)': 'Non-AE AP Immediate Jeopardy',
-    'Other Non-Immediate Jeopardy (not an AE)': 'Non-AE AP Non-Immediate Jeopardy',
-}
-df_enforcement['PENALTY_CATEGORY'] = (
-    df_enforcement['PENALTY_CATEGORY']
-    .str.strip()
-    .replace(penalty_category_map)
-)
+# penalty_category_map = {
+#     'AE04 - Retention of a foreign object in a patient': 'AE: Retention of a foreign object in a patient',
+#     'AE17 - Stage 3 or 4 ulcer acquired after admission': 'AE: Stage 3 or 4 ulcer acquired after admission',
+#     'AE22 - Death associated with a fall': 'AE: Death associated with a fall',
+#     'AE11 - Suicide/attempted suicide': 'AE: Suicide/attempted suicide',
+#     'AE12 - Medication error': 'AE: Medication error',
+#     'AE26  - Sexual assault on a patient': 'AE: Sexual assault on a patient',
+#     'AE27 - Death/injury from a physical assault': 'AE: Death/injury from a physical assault',
+#     'AE28 - Adverse event or series of adverse events': 'AE: Adverse event or series of adverse events',
+#     'AE01 - Surgery performed on a wrong body part': 'AE: Surgery performed on a wrong body part',
+#     'AE02 - Wrong patient surgery': 'AE: Wrong patient surgery',
+#     'AE03 - Wrong surgical procedure performed on a patient': 'AE: Wrong surgical procedure performed on a patient',
+#     'AE05 - Death during or up to 24 hours after surgery': 'AE: Death during or up to 24 hours after surgery',
+#     'AE06  -Use of contaminated drug, device, or biologic': 'AE: Use of contaminated drug, device, or biologic',
+#     'AE07 - Use of device other than as intended': 'AE: Use of device other than as intended',
+#     'AE08 - Death/disability due to intravascular air embolism': 'AE: Death/disability due to intravascular air embolism',
+#     'AE10 - Death/disability due to disappearance': 'AE: Death/disability due to disappearance',
+#     'AE13 - Hemolytic reaction': 'AE: Hemolytic reaction',
+#     'AE14 - Maternal death/disab due to labor/del/post': 'AE: Maternal death/disab due to labor/del/post',
+#     'AE15 - Death/disability directly related to hypoglycemia': 'AE: Death/disability directly related to hypoglycemia',
+#     'AE19 - Death/disability due to electric shock': 'AE: Death/disability due to electric shock',
+#     'AE20 - Line contaminated or use for wrong gas': 'AE: Line contaminated or use for wrong gas',
+#     'AE21 - Death/disability due to a burn': 'AE: Death/disability due to a burn',
+#     'AE23 - Death/disab assoc with use of restraints/bedrails': 'AE: Death/disab assoc with use of restraints/bedrails',
+#     'AE24 - Care by impersonating licensed provider': 'AE: Care by impersonating licensed provider',
+#     'AE25 - Abduction of a patient of any age': 'AE: Abduction of a patient of any age',
+#     'Financial Occurrence/Fac Not Self Reported': 'Financial Occurrence/Facility Not Self Reported',
+#     'Breach of IT system theft/loss of edevice/med rec': 'Breach of IT system theft/loss of device/med records',
+#     'Deliberate breach of PHI by health care worker': 'Deliberate breach of PHI (protected health information) by health care worker',
+#     'Other Immediate Jeopardy (not an AE)': 'Non-AE AP Immediate Jeopardy',
+#     'Other Non-Immediate Jeopardy (not an AE)': 'Non-AE AP Non-Immediate Jeopardy',
+# }
+# df_enforcement['PENALTY_CATEGORY'] = (
+#     df_enforcement['PENALTY_CATEGORY']
+#     .str.strip()
+#     .replace(penalty_category_map)
+# )
 
 #Clean class_assesed_final before joining
 final_map = {
