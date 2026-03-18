@@ -60,7 +60,7 @@ df_hospitals=df_mart[df_mart['IS_HOSPITAL']==1]
 df_ltcn =df_mart[df_mart['IS_HOSPITAL']==0]
 
 
-
+#aggregating at the facility level hospitals
 facility_summary_hosp = df_hospitals.groupby('FACID').agg(
     total_penalties         = ('PENALTY_NUMBER',    'count'),
     total_deaths            = ('DEATH_RELATED',     'sum'),
@@ -87,8 +87,7 @@ facility_summary_hosp = df_hospitals.groupby('FACID').agg(
 ).reset_index()
 print(f'Hospital facilities aggregated: {len(facility_summary_hosp):,}')
 
-
-
+#aggregating at the facility level LTC/NLTC
 
 facility_summary_ltc = df_ltcn.groupby('FACID').agg(
     total_penalties      = ('PENALTY_NUMBER',    'count'),
@@ -114,8 +113,6 @@ facility_summary_ltc = df_ltcn.groupby('FACID').agg(
     last_penalty_date    = ('PENALTY_ISSUE_DATE','max'),
 ).reset_index()
 print(f'LTC facilities aggregated: {len(facility_summary_ltc):,}')
-
-
 
 
 def compute_rates(df, count_cols):
@@ -146,7 +143,6 @@ LTC_COUNT_COLS = [
 facility_summary_hosp = compute_rates(facility_summary_hosp, HOSP_COUNT_COLS)
 facility_summary_ltc  = compute_rates(facility_summary_ltc,  LTC_COUNT_COLS)
 print('Rates computed.')
-
 
 
 def credibility_weight(df, rate_col, k=5):
@@ -214,7 +210,7 @@ HOSPITAL_FEATURES = [
     'ftr_ae_rate_eb',
     'ftr_br_rate_eb',
     'ap_br_rate_eb',
-    # 'ae_death_rate_eb',
+    # 'ae_death_rate_eb', removed due to colinearity with death related citations
     'ae_surgery_rate_eb', 
     'ae_assault_rate_eb',
     'ae_medication_rate_eb',
@@ -232,7 +228,7 @@ LTC_FEATURES = [
     'wmf_rate_eb',
     'wmo_rate_eb', 
     'trebled_rate_eb',
-    # 'ae_death_rate_eb', 
+    # 'ae_death_rate_eb', removed due to colinearity with death related citations
     'ae_ulcer_rate_eb', 
     'ap_nhppd_rate_eb',
     'ftr_br_rate_eb',
@@ -247,8 +243,6 @@ df_hosp_scored, iso_hosp, X_hosp_scaled, X_hosp_raw = run_iso(
 df_ltc_scored, iso_ltc, X_ltc_scaled, X_ltc_raw = run_iso(
     facility_summary_ltc, LTC_FEATURES, CONTAMINATION, 'LTC'
 )
-
-
 
 
 n_hosp = (df_hosp_scored['is_anomaly'] == -1).sum()
@@ -285,6 +279,7 @@ print(top25[[
 
 
 
+#feature importance by facility type
 
 def explain(iso, X_scaled, X_raw, features, label):
     explainer  = shap.TreeExplainer(iso)
@@ -294,24 +289,9 @@ def explain(iso, X_scaled, X_raw, features, label):
     print(f'── {label}: global feature importance ──')
     shap.summary_plot(sv, X_raw, feature_names=features, plot_type='bar', show=True)
 
-    top_pos  = X_raw.reset_index(drop=True).index[
-        pd.Series(iso.decision_function(X_scaled)).idxmin()
-    ]
-    base_val = explainer.expected_value
-    if hasattr(base_val, '__len__'): base_val = float(base_val[0])
-
-    shap.plots.waterfall(
-        shap.Explanation(
-            values        = sv[top_pos],
-            base_values   = base_val,
-            data          = X_scaled[top_pos],
-            feature_names = features,
-        )
-    )
 
 explain(iso_hosp, X_hosp_scaled, X_hosp_raw, HOSPITAL_FEATURES, 'Hospital')
 explain(iso_ltc,  X_ltc_scaled,  X_ltc_raw,  LTC_FEATURES,      'LTC')
-
 
 con.close()
 
