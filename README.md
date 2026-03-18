@@ -2,6 +2,7 @@
 End-to-end data pipeline and risk scoring model for California health facility enforcement actions (CDPH, 1998–2024).
 
 ---
+Requires Python 3.11.1
 
 ## Quickstart
 ```bash
@@ -26,9 +27,10 @@ python3 pipeline.py
 
 **`pipeline.py`** — Orchestrates full pipeline end to end
 
-Optional: **`EDA.py`** - Some visualizations and explanatory stats on types of citations 
+Optional: 
+**`EDA.py`** - Some visualizations and explanatory stats on citation types
 
-**`model_explain`** - Includes visuals of feature importance of model for distinct facilities
+
 
 
 ---
