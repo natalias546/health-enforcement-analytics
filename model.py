@@ -1,30 +1,18 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[3]:
-
-
-import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns 
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import duckdb
 import pandas as pd
+import shap
+from sklearn.ensemble import IsolationForest
+from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
 
 
-# In[4]:
-
-
+#Connect to Database
 con = duckdb.connect("health_enforcement.duckdb")
 df_mart = con.execute("SELECT * FROM enriched_mart").df()
 
 
-# 
-
-# In[7]:
-
+#Do not include sucessfully appealed violations
 
 INVALID_OUTCOMES = {
     'drop>deficiency',
@@ -35,21 +23,20 @@ INVALID_OUTCOMES = {
 }
 
 def engineer_penalty_features(df):
-    # ── filter out invalid outcomes first ─────────────────────────────────────
     valid_mask = ~df['CLASS_FINAL'].str.lower().fillna('').isin(INVALID_OUTCOMES)
     df = df[valid_mask].copy()
     print(f"  rows before: {valid_mask.shape[0]:,}  dropped: {(~valid_mask).sum():,}  remaining: {valid_mask.sum():,}")
 
     cat = df['PENALTY_CATEGORY'].str.lower().fillna('')
 
-    # ── general ───────────────────────────────────────────────────────────────
+    # general
     df['is_ae']               = cat.str.contains('ae:',               regex=False).astype(int)
     df['is_breach']           = cat.str.contains('breach',            regex=False).astype(int)
     df['is_deliberate_breach']= cat.str.contains('deliberate breach', regex=False).astype(int)
     df['is_ij']               = cat.str.contains('immediate jeopardy',regex=False).astype(int)
     df['is_non_ij']           = cat.str.contains('non-immediate jeopardy', regex=False).astype(int)
 
-    # ── ae subtypes ───────────────────────────────────────────────────────────
+    # ae subtypes 
     df['is_ae_death']         = cat.str.contains('death',             regex=False).astype(int)
     df['is_ae_assault']       = cat.str.contains('assault|sexual assault|physical assault', regex=True).astype(int)
     df['is_ae_surgery']       = cat.str.contains('surg|wrong body part|foreign object',    regex=True).astype(int)
@@ -58,7 +45,7 @@ def engineer_penalty_features(df):
     df['is_ae_suicide']       = cat.str.contains('suicide',           regex=False).astype(int)
     df['is_ae_ulcer']         = cat.str.contains('ulcer',             regex=False).astype(int)
 
-    # ── ltc-specific ──────────────────────────────────────────────────────────
+    # ltc-specific
     df['is_abuse']            = cat.str.contains('abuse',             regex=False).astype(int)
     df['is_falsification']    = cat.str.contains('falsif',            regex=False).astype(int)
     df['is_neglect']          = cat.str.contains('neglect',           regex=False).astype(int)
@@ -66,20 +53,12 @@ def engineer_penalty_features(df):
 
     return df
 
-# apply to both
 df_mart = engineer_penalty_features(df_mart.copy())
-
-
-# Seperating based on facility type due to difference in nature of citations
-
-# In[8]:
 
 
 df_hospitals=df_mart[df_mart['IS_HOSPITAL']==1]
 df_ltcn =df_mart[df_mart['IS_HOSPITAL']==0]
 
-
-# In[11]:
 
 
 facility_summary_hosp = df_hospitals.groupby('FACID').agg(
@@ -109,7 +88,6 @@ facility_summary_hosp = df_hospitals.groupby('FACID').agg(
 print(f'Hospital facilities aggregated: {len(facility_summary_hosp):,}')
 
 
-# In[12]:
 
 
 facility_summary_ltc = df_ltcn.groupby('FACID').agg(
@@ -138,7 +116,6 @@ facility_summary_ltc = df_ltcn.groupby('FACID').agg(
 print(f'LTC facilities aggregated: {len(facility_summary_ltc):,}')
 
 
-# In[18]:
 
 
 def compute_rates(df, count_cols):
@@ -170,14 +147,6 @@ facility_summary_hosp = compute_rates(facility_summary_hosp, HOSP_COUNT_COLS)
 facility_summary_ltc  = compute_rates(facility_summary_ltc,  LTC_COUNT_COLS)
 print('Rates computed.')
 
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
 
 
 def credibility_weight(df, rate_col, k=5):
@@ -214,14 +183,6 @@ facility_summary_ltc  = apply_eb_smoothing(facility_summary_ltc,  LTC_RATES)
 print('EB smoothing applied.')
 
 
-# In[ ]:
-
-
-from sklearn.ensemble import IsolationForest
-from sklearn.preprocessing import StandardScaler
-from sklearn.impute import SimpleImputer
-import numpy as np
-
 CONTAMINATION = 0.05
 HOSP_CONTAM   = 0.15  # small pool so higher prior
 RANDOM_STATE  = 42
@@ -248,20 +209,36 @@ def run_iso(df, features, contamination, label):
 
 HOSPITAL_FEATURES = [
     'total_penalties',
-    'ap_ij_rate_eb', 'ap_non_ij_rate_eb',
-    'ftr_ae_rate_eb', 'ftr_br_rate_eb', 'ap_br_rate_eb',
-    'ae_death_rate_eb', 'ae_surgery_rate_eb', 'ae_assault_rate_eb',
-    'ae_medication_rate_eb', 'deliberate_breach_rate_eb',
-    'deaths_rate_eb', 'balance_per_penalty'
+    'ap_ij_rate_eb',
+    'ap_non_ij_rate_eb',
+    'ftr_ae_rate_eb',
+    'ftr_br_rate_eb',
+    'ap_br_rate_eb',
+    # 'ae_death_rate_eb',
+    'ae_surgery_rate_eb', 
+    'ae_assault_rate_eb',
+    'ae_medication_rate_eb',
+    'deliberate_breach_rate_eb',
+    'deaths_rate_eb',
+    'balance_per_penalty'
 ]
 LTC_FEATURES = [
     'total_penalties',
-    'class_aa_rate_eb', 'class_a_rate_eb',
-    'abuse_rate_eb', 'falsification_rate_eb', 'neglect_rate_eb',
-    'wmf_rate_eb', 'wmo_rate_eb', 'trebled_rate_eb',
-    'ae_death_rate_eb', 'ae_ulcer_rate_eb', 'ap_nhppd_rate_eb',
-    'ftr_br_rate_eb', 'deaths_rate_eb',
-    'complaint_rate_log', 'balance_per_penalty'
+    'class_aa_rate_eb',
+    'class_a_rate_eb',
+    'abuse_rate_eb',
+    'falsification_rate_eb', 
+    'neglect_rate_eb',
+    'wmf_rate_eb',
+    'wmo_rate_eb', 
+    'trebled_rate_eb',
+    # 'ae_death_rate_eb', 
+    'ae_ulcer_rate_eb', 
+    'ap_nhppd_rate_eb',
+    'ftr_br_rate_eb',
+    'deaths_rate_eb',
+    'complaint_rate_log', 
+    'balance_per_penalty'
 ]
 
 df_hosp_scored, iso_hosp, X_hosp_scaled, X_hosp_raw = run_iso(
@@ -272,7 +249,6 @@ df_ltc_scored, iso_ltc, X_ltc_scaled, X_ltc_raw = run_iso(
 )
 
 
-# In[40]:
 
 
 n_hosp = (df_hosp_scored['is_anomaly'] == -1).sum()
@@ -309,37 +285,35 @@ print(top25[[
 
 
 
-# import shap
 
-# def explain(iso, X_scaled, X_raw, features, label):
-#     explainer  = shap.TreeExplainer(iso)
-#     sv_raw     = explainer.shap_values(X_scaled)
-#     sv         = sv_raw[0] if isinstance(sv_raw, list) else sv_raw
+def explain(iso, X_scaled, X_raw, features, label):
+    explainer  = shap.TreeExplainer(iso)
+    sv_raw     = explainer.shap_values(X_scaled)
+    sv         = sv_raw[0] if isinstance(sv_raw, list) else sv_raw
 
-#     print(f'── {label}: global feature importance ──')
-#     shap.summary_plot(sv, X_raw, feature_names=features, plot_type='bar', show=True)
+    print(f'── {label}: global feature importance ──')
+    shap.summary_plot(sv, X_raw, feature_names=features, plot_type='bar', show=True)
 
-#     top_pos  = X_raw.reset_index(drop=True).index[
-#         pd.Series(iso.decision_function(X_scaled)).idxmin()
-#     ]
-#     base_val = explainer.expected_value
-#     if hasattr(base_val, '__len__'): base_val = float(base_val[0])
+    top_pos  = X_raw.reset_index(drop=True).index[
+        pd.Series(iso.decision_function(X_scaled)).idxmin()
+    ]
+    base_val = explainer.expected_value
+    if hasattr(base_val, '__len__'): base_val = float(base_val[0])
 
-#     shap.plots.waterfall(
-#         shap.Explanation(
-#             values        = sv[top_pos],
-#             base_values   = base_val,
-#             data          = X_scaled[top_pos],
-#             feature_names = features,
-#         )
-#     )
+    shap.plots.waterfall(
+        shap.Explanation(
+            values        = sv[top_pos],
+            base_values   = base_val,
+            data          = X_scaled[top_pos],
+            feature_names = features,
+        )
+    )
 
-# explain(iso_hosp, X_hosp_scaled, X_hosp_raw, HOSPITAL_FEATURES, 'Hospital')
-# explain(iso_ltc,  X_ltc_scaled,  X_ltc_raw,  LTC_FEATURES,      'LTC')
+explain(iso_hosp, X_hosp_scaled, X_hosp_raw, HOSPITAL_FEATURES, 'Hospital')
+explain(iso_ltc,  X_ltc_scaled,  X_ltc_raw,  LTC_FEATURES,      'LTC')
 
 
 con.close()
-
 
 
 
